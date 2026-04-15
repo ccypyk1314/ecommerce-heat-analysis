@@ -168,18 +168,7 @@ elif page == "🏆 热度排行榜":
     ]
     
     # 显示表格（带颜色条）
-    st.dataframe(
-        display_df.style.background_gradient(
-            subset=['热度得分'], 
-            cmap='YlOrRd'
-        ).format({
-            '热度得分': '{:.2f}',
-            'Z分数(标准分)': '{:.2f}',
-            '转化率': '{:.2%}'
-        }),
-        use_container_width=True,
-        height=400
-    )
+    st.dataframe(display_df, use_container_width=True, height=400)
     
     # 数据解读
     st.success("""
