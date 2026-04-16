@@ -1,4 +1,72 @@
 import streamlit as st
+
+# 全局CSS美化（专业蓝白配色，符合电商分析场景）
+st.markdown("""
+<style>
+    /* 整体背景与字体 */
+    .main {
+        background-color: #f8fafc;
+        font-family: 'Microsoft YaHei', sans-serif;
+    }
+    
+    /* 标题样式 */
+    .main-header {
+        font-size: 2.8rem;
+        font-weight: 800;
+        color: #1e40af;
+        text-align: center;
+        margin-bottom: 2rem;
+        padding: 1rem;
+        background: linear-gradient(135deg, #dbeafe 0%, #eff6ff 100%);
+        border-radius: 12px;
+        border-left: 6px solid #2563eb;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* 指标卡片美化 */
+    .stMetric {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        border: 1px solid #e5e7eb;
+        transition: transform 0.2s;
+    }
+    .stMetric:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* 侧边栏美化 */
+    .css-1d391kg {
+        background-color: #1e293b;
+        color: white;
+    }
+    
+    /* 数据表格斑马纹 */
+    .dataframe tbody tr:nth-child(odd) {
+        background-color: #f8fafc;
+    }
+    .dataframe tbody tr:hover {
+        background-color: #dbeafe;
+    }
+    
+    /* 按钮与交互元素 */
+    .stButton>button {
+        background-color: #2563eb;
+        color: white;
+        border-radius: 8px;
+        padding: 0.5rem 1.5rem;
+        font-weight: 600;
+        transition: all 0.3s;
+    }
+    .stButton>button:hover {
+        background-color: #1d4ed8;
+        transform: scale(1.05);
+    }
+</style>
+""", unsafe_allow_html=True)
+import streamlit as st
 import pandas as pd
 import plotly.express as px
 import requests
