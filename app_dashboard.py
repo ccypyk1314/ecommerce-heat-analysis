@@ -314,7 +314,7 @@ elif page == "🔥 热度多维分析":
                 )
             )
         
-        # 修复：Parcoords不支持width属性
+        # 修复：Parcoords不支持width和opacity属性
         fig_parallel = go.Figure(data=go.Parcoords(
             line=dict(
                 color=top_items['heat_score'],
@@ -323,7 +323,6 @@ elif page == "🔥 热度多维分析":
                 cmin=top_items['heat_score'].min(),
                 cmax=top_items['heat_score'].max(),
                 colorbar=dict(title="热度得分", thickness=15)
-                # 移除了 width=3 和 opacity=0.9，Parcoords不支持这些属性
             ),
             dimensions=dimensions_list,
             unselected=dict(line=dict(color='lightgray', opacity=0.2)),
@@ -355,7 +354,7 @@ elif page == "🔥 热度多维分析":
                 hide_index=True
             )
     
-    # Tab2: 子弹图
+    # Tab2: 子弹图（简化版）
     with tab2:
         col_select, col_chart = st.columns([1, 4])
         
@@ -383,7 +382,6 @@ elif page == "🔥 热度多维分析":
                 fig_bullet = go.Figure()
                 
                 colors = ['#2563eb', '#dc2626']
-                cat_means = filtered_df[metrics_compare].mean()
                 
                 for idx, item_id in enumerate(selected_items[:2]):
                     item = filtered_df[filtered_df['item_id'] == item_id].iloc[0]
@@ -393,8 +391,6 @@ elif page == "🔥 热度多维分析":
                         
                         max_val = filtered_df[metric].max()
                         normalized_actual = (actual / max_val) * 100 if max_val > 0 else 0
-                        
-                        y_pos = metric_idx * 2 + idx * 0.8
                         
                         fig_bullet.add_trace(go.Bar(
                             x=[100],
@@ -462,15 +458,15 @@ elif page == "🔥 热度多维分析":
         
         df_temp = filtered_df.copy()
         
-        # 修复：使用pd.cut并确保转换为字符串，避免Interval类型
+        # 修复：使用pd.cut并转换为字符串，避免Interval类型JSON序列化错误
         try:
             df_temp['heat_level'] = pd.cut(df_temp['heat_score'], 
                                           bins=[0, 2, 5, 10, 20, float('inf')],
                                           labels=['冷门(0-2)', '一般(2-5)', '热门(5-10)', '爆款(10-20)', '超级爆款(20+)'])
-            # 转换为字符串类型，避免JSON序列化错误
+            # 关键修复：转换为字符串类型
             df_temp['heat_level'] = df_temp['heat_level'].astype(str)
         except:
-            # 如果分箱失败，使用简单的分类
+            # 备用方案：手动分类
             df_temp['heat_level'] = '未知'
             df_temp.loc[df_temp['heat_score'] <= 2, 'heat_level'] = '冷门(0-2)'
             df_temp.loc[(df_temp['heat_score'] > 2) & (df_temp['heat_score'] <= 5), 'heat_level'] = '一般(2-5)'
@@ -513,7 +509,7 @@ elif page == "🔥 热度多维分析":
         st.plotly_chart(fig_treemap, use_container_width=True, config={'displayModeBar': False})
 
 # ==========================================
-# 页面3：转化漏斗洞察（修复版 - 包含收藏）
+# 页面3：转化漏斗洞察（修复版 - 收藏/加购分流）
 # ==========================================
 elif page == "🎯 转化漏斗洞察":
     st.markdown('<h1 class="hero-title">用户行为转化漏斗</h1>', unsafe_allow_html=True)
@@ -540,102 +536,124 @@ elif page == "🎯 转化漏斗洞察":
             <p style="font-size: 1.4rem; font-weight: 700; color: {color}; margin: 8px 0;">{value:,.0f}</p>
         </div>
         """, unsafe_allow_html=True)
-    
+
+    # 分支桑基图：点击后分为"直接加购"和"收藏后加购"两条路径
     with st.container():
-        st.markdown('<div style="padding: 10px 0; font-weight: 600; color: #1e293b;">📉 行为转化漏斗（全链路）</div>', unsafe_allow_html=True)
-        
-        funnel_values = [total_uv, total_clicks, total_favorites, total_carts, total_purchases]
-        funnel_labels = ["曝光", "点击", "收藏", "加购", "购买"]
-        funnel_colors = ["#94a3b8", "#3b82f6", "#ec4899", "#f59e0b", "#10b981"]
-        
-        fig_funnel = go.Figure(go.Funnel(
-            y=funnel_labels,
-            x=funnel_values,
-            textposition="inside",
-            textinfo="value+percent initial",
-            texttemplate="%{value:,.0f}<br>(%{percentInitial:.1%})",
-            opacity=0.9,
-            marker=dict(color=funnel_colors, line=dict(width=2, color='white')),
-            connector=dict(line=dict(color="#e5e7eb", width=2)),
-            hovertemplate='<b>%{label}</b><br>数值: %{value:,.0f}<br>占首层: %{percentInitial:.1%}<extra></extra>'
-        ))
-        fig_funnel.update_layout(
-            template='plotly_white',
-            height=450,
-            margin=dict(l=20, r=20, t=30, b=20),
-            paper_bgcolor='rgba(0,0,0,0)'
-        )
-        st.plotly_chart(fig_funnel, use_container_width=True, config={'displayModeBar': False})
-    
-    with st.container():
-        st.markdown('<div style="padding: 10px 0; font-weight: 600; color: #1e293b;">🌊 用户行为流量桑基图</div>', unsafe_allow_html=True)
+        st.markdown('<div style="padding: 10px 0; font-weight: 600; color: #1e293b;">🌊 用户行为分流桑基图（点击后分两条路径）</div>', unsafe_allow_html=True)
+        st.markdown('<p style="color: #64748b; font-size: 0.85rem; margin-bottom: 15px;">蓝色=直接转化路径 | 粉色=收藏转化路径 | 灰色=流失</p>', unsafe_allow_html=True)
         
         sample_size = min(5000, len(filtered_df))
         sample_df = filtered_df.sample(sample_size, random_state=42)
         
+        # 计算各节点人数
         exposure = sample_size
         click_n = (sample_df['clicks'] > 0).sum()
-        fav_n = (sample_df['favorites'] > 0).sum()
-        cart_n = (sample_df['carts'] > 0).sum()
-        buy_n = (sample_df['purchases'] > 0).sum()
         
+        # 点击后的分流
+        fav_n = (sample_df['favorites'] > 0).sum()
+        direct_cart_n = ((sample_df['carts'] > 0) & (sample_df['favorites'] == 0)).sum()
+        fav_then_cart_n = ((sample_df['favorites'] > 0) & (sample_df['carts'] > 0)).sum()
+        
+        # 购买节点
+        direct_buy_n = ((sample_df['purchases'] > 0) & (sample_df['favorites'] == 0)).sum()
+        fav_buy_n = ((sample_df['purchases'] > 0) & (sample_df['favorites'] > 0)).sum()
+        
+        # 流失计算
         loss_click = exposure - click_n
-        loss_fav = click_n - fav_n
-        loss_cart = fav_n - cart_n
-        loss_buy = cart_n - buy_n
+        loss_after_click = click_n - fav_n - direct_cart_n
+        loss_fav = fav_n - fav_then_cart_n
+        total_cart = direct_cart_n + fav_then_cart_n
+        total_buy = direct_buy_n + fav_buy_n
+        loss_cart = total_cart - total_buy
         
         fig_sankey = go.Figure(data=[go.Sankey(
             arrangement="snap",
             node=dict(
                 pad=20,
                 thickness=25,
-                line=dict(color="white", width=1),
-                label=["📢 曝光", "👆 点击", "❤️ 收藏", "🛒 加购", "💰 购买", "💨 流失1", "💨 流失2", "💨 流失3", "💨 流失4"],
-                color=["#94a3b8", "#3b82f6", "#ec4899", "#f59e0b", "#10b981", "#cbd5e1", "#cbd5e1", "#cbd5e1", "#cbd5e1"],
-                x=[0.05, 0.25, 0.45, 0.65, 0.85, 0.25, 0.45, 0.65, 0.85],
-                y=[0.5, 0.5, 0.4, 0.5, 0.5, 0.2, 0.15, 0.2, 0.15]
+                line=dict(color="white", width=2),
+                label=["📢 曝光", "👆 点击", "❤️ 收藏", "🛒 直接加购", "🛒 收藏后加购", "💰 直接购买", "💰 收藏后购买", "💨 流失"],
+                color=["#94a3b8", "#3b82f6", "#ec4899", "#f59e0b", "#f97316", "#10b981", "#059669", "#cbd5e1"],
+                x=[0.05, 0.2, 0.4, 0.4, 0.6, 0.8, 0.8, 0.6],
+                y=[0.5, 0.5, 0.25, 0.75, 0.5, 0.75, 0.25, 0.1]
             ),
             link=dict(
-                source=[0, 0, 1, 1, 2, 2, 3, 3],
-                target=[1, 5, 2, 6, 3, 7, 4, 8],
-                value=[click_n, loss_click, fav_n, loss_fav, cart_n, loss_cart, buy_n, loss_cart],
+                source=[0, 1, 1, 2, 2, 3, 4, 3, 4],
+                target=[1, 2, 3, 4, 7, 5, 6, 7, 7],
+                value=[click_n, fav_n, direct_cart_n, fav_then_cart_n, loss_fav, direct_buy_n, fav_buy_n, 
+                       direct_cart_n - direct_buy_n, fav_then_cart_n - fav_buy_n],
                 color=[
                     "rgba(59, 130, 246, 0.6)",
-                    "rgba(203, 213, 225, 0.3)",
                     "rgba(236, 72, 153, 0.6)",
-                    "rgba(203, 213, 225, 0.3)",
+                    "rgba(59, 130, 246, 0.6)",
                     "rgba(245, 158, 11, 0.6)",
                     "rgba(203, 213, 225, 0.3)",
                     "rgba(16, 185, 129, 0.8)",
+                    "rgba(5, 150, 105, 0.8)",
+                    "rgba(203, 213, 225, 0.3)",
                     "rgba(203, 213, 225, 0.3)"
                 ],
-                hovertemplate='从 %{source.label} 到 %{target.label}<br>人数: %{value}<br>占比: %{percent:.1%}<extra></extra>'
+                hovertemplate='从 %{source.label} 到 %{target.label}<br>人数: %{value}<extra></extra>'
             )
         )])
         
         fig_sankey.update_layout(
             template='plotly_white',
-            height=500,
+            height=550,
             margin=dict(l=20, r=20, t=40, b=20),
             paper_bgcolor='rgba(0,0,0,0)',
-            font=dict(size=12, family="Arial"),
+            font=dict(size=12),
             title=dict(
-                text="用户流量流向图（基于抽样数据）",
+                text="点击后用户分流：直接加购 vs 先收藏后加购",
                 font=dict(size=14, color="#374151"),
                 x=0.5
             )
         )
         st.plotly_chart(fig_sankey, use_container_width=True, config={'displayModeBar': False})
         
-        col_conv1, col_conv2, col_conv3, col_conv4 = st.columns(4)
+        col_conv1, col_conv2, col_conv3 = st.columns(3)
         with col_conv1:
-            st.metric("曝光→点击", f"{click_n/exposure*100:.1f}%", f"{click_n}人")
+            direct_cart_rate = direct_cart_n/click_n*100 if click_n > 0 else 0
+            st.metric("直接加购率", f"{direct_cart_rate:.1f}%", f"{direct_cart_n}人")
         with col_conv2:
-            st.metric("点击→收藏", f"{fav_n/click_n*100:.1f}%" if click_n > 0 else "0%", f"{fav_n}人")
+            fav_rate = fav_n/click_n*100 if click_n > 0 else 0
+            st.metric("收藏率", f"{fav_rate:.1f}%", f"{fav_n}人")
         with col_conv3:
-            st.metric("收藏→加购", f"{cart_n/fav_n*100:.1f}%" if fav_n > 0 else "0%", f"{cart_n}人")
-        with col_conv4:
-            st.metric("加购→购买", f"{buy_n/cart_n*100:.1f}%" if cart_n > 0 else "0%", f"{buy_n}人")
+            fav_to_cart_rate = fav_then_cart_n/fav_n*100 if fav_n > 0 else 0
+            st.metric("收藏→加购转化", f"{fav_to_cart_rate:.1f}%", f"{fav_then_cart_n}人")
+    
+    # 横向条形图替代漏斗图（避免收藏数据被压缩）
+    with st.container():
+        st.markdown('<div style="padding: 10px 0; font-weight: 600; color: #1e293b;">📊 关键转化步骤对比（横向条形图）</div>', unsafe_allow_html=True)
+        
+        stages = ["👁️ 曝光", "👆 点击", "❤️ 收藏", "🛒 总加购", "💰 购买"]
+        values = [total_uv, total_clicks, total_favorites, total_carts, total_purchases]
+        colors_bar = ["#94a3b8", "#3b82f6", "#ec4899", "#f59e0b", "#10b981"]
+        
+        fig_bar = go.Figure()
+        
+        for i, (stage, val, color) in enumerate(zip(stages, values, colors_bar)):
+            fig_bar.add_trace(go.Bar(
+                y=[stage],
+                x=[val],
+                orientation='h',
+                marker_color=color,
+                text=f"{val:,.0f}",
+                textposition='outside',
+                name=stage,
+                showlegend=False
+            ))
+        
+        fig_bar.update_layout(
+            template='plotly_white',
+            height=400,
+            margin=dict(l=80, r=100, t=30, b=40),
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            xaxis=dict(title="用户数量", gridcolor='#e2e8f0'),
+            yaxis=dict(title="", autorange="reversed")
+        )
+        st.plotly_chart(fig_bar, use_container_width=True, config={'displayModeBar': False})
 
 # ==========================================
 # 页面4：统计检验报告（新增）
