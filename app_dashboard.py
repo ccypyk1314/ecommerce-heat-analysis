@@ -79,32 +79,6 @@ st.markdown("""
         text-align: center;
         margin-bottom: 15px;
     }
-    .reset-btn {
-        background-color: #f3f4f6;
-        color: #374151;
-        border: 1px solid #d1d5db;
-        border-radius: 6px;
-        padding: 4px 12px;
-        font-size: 0.8rem;
-        cursor: pointer;
-        width: 100%;
-        margin-top: 10px;
-    }
-    .reset-btn:hover {
-        background-color: #e5e7eb;
-    }
-    /* 表格样式优化 */
-    .dataframe {
-        font-size: 0.9rem;
-    }
-    .dataframe th {
-        background-color: #f1f5f9;
-        font-weight: 600;
-        text-align: center;
-    }
-    .dataframe td {
-        text-align: center;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -145,10 +119,6 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### ⚡ 快速筛选")
     
-    # 筛选统计卡片
-    if 'filtered_df' not in st.session_state:
-        st.session_state.filtered_df = df.copy()
-    
     selected_cat = st.multiselect(
         "类目筛选", 
         options=sorted(df['cat_id'].unique()),
@@ -156,7 +126,6 @@ with st.sidebar:
         help="选择特定类目查看数据"
     )
     
-    # 动态范围计算
     heat_min, heat_max = float(df['heat_score'].min()), float(df['heat_score'].max())
     heat_range = st.slider(
         "热度得分区间",
@@ -166,7 +135,6 @@ with st.sidebar:
         help="拖动滑块筛选热度范围"
     )
     
-    # 实时统计
     temp_df = df.copy()
     if selected_cat:
         temp_df = temp_df[temp_df['cat_id'].isin(selected_cat)]
@@ -181,8 +149,6 @@ with st.sidebar:
     """, unsafe_allow_html=True)
     
     if st.button("🔄 重置筛选", key="reset_filter"):
-        selected_cat = []
-        heat_range = (heat_min, heat_max)
         st.rerun()
 
 # 应用筛选
@@ -201,7 +167,6 @@ if page == "🏠 全景数据大屏":
     st.markdown('<h1 class="hero-title">电商商品热度全景大屏</h1>', unsafe_allow_html=True)
     st.markdown(f'<p class="subtitle">基于统计学的商品表现可视化分析 | 当前展示: {len(filtered_df):,}件商品</p>', unsafe_allow_html=True)
     
-    # 关键指标（基于筛选数据）
     col1, col2, col3, col4 = st.columns(4)
     
     metrics_data = [
@@ -220,7 +185,6 @@ if page == "🏠 全景数据大屏":
         </div>
         """, unsafe_allow_html=True)
 
-    # 图表行1
     col_left, col_right = st.columns([3, 2])
     
     with col_left:
@@ -280,7 +244,6 @@ if page == "🏠 全景数据大屏":
             )
             st.plotly_chart(fig2, use_container_width=True, config={'displayModeBar': False})
 
-    # 散点图
     with st.container():
         st.markdown('<div style="padding: 10px 0; font-weight: 600; color: #1e293b;">🫧 商品表现三维散点图（UV × 转化率 × 热度）</div>', unsafe_allow_html=True)
         
@@ -309,22 +272,20 @@ if page == "🏠 全景数据大屏":
         st.plotly_chart(fig3, use_container_width=True, config={'displayModeBar': True, 'displaylogo': False})
 
 # ==========================================
-# 页面2：热度多维分析（重大改进）
+# 页面2：热度多维分析（修复版）
 # ==========================================
 elif page == "🔥 热度多维分析":
     st.markdown('<h1 class="hero-title">商品热度多维透视</h1>', unsafe_allow_html=True)
     
     tab1, tab2, tab3 = st.tabs(["📊 平行坐标对比", "🎯 指标子弹图", "🗂️ 类目树状图"])
     
-    # Tab1: 平行坐标图（优化版）
+    # Tab1: 平行坐标图（修复版 - 移除width属性）
     with tab1:
         st.markdown('<div style="padding: 10px 0; font-weight: 600; color: #1e293b; font-size: 1.1rem;">📊 多维度平行坐标对比（Top10商品）</div>', unsafe_allow_html=True)
         st.markdown('<p style="color: #64748b; font-size: 0.85rem; margin-bottom: 15px;">悬停查看具体数值，拖动坐标轴筛选框可高亮特定范围</p>', unsafe_allow_html=True)
         
-        # 准备数据：取Top10商品，进行Min-Max标准化使各维度可比
         top_items = filtered_df.nlargest(10, 'heat_score').copy()
         
-        # 标准化处理（让各维度在同一尺度0-1）
         dims = ['heat_score', 'uv', 'clicks', 'favorites', 'carts', 'overall_conversion']
         dim_labels = {
             'heat_score': '热度得分',
@@ -341,7 +302,6 @@ elif page == "🔥 热度多维分析":
             else:
                 top_items[f'{dim}_norm'] = 0
         
-        # 创建平行坐标图 - 优化版
         dimensions_list = []
         for dim in dims:
             dimensions_list.append(
@@ -354,14 +314,7 @@ elif page == "🔥 热度多维分析":
                 )
             )
         
-        # 添加商品ID作为悬停标签
-        hover_text = []
-        for idx, row in top_items.iterrows():
-            info = f"商品: {row['item_id']}<br>"
-            for dim in dims:
-                info += f"{dim_labels[dim]}: {row[dim]:.2f}<br>"
-            hover_text.append(info)
-        
+        # 修复：Parcoords不支持width属性
         fig_parallel = go.Figure(data=go.Parcoords(
             line=dict(
                 color=top_items['heat_score'],
@@ -369,13 +322,11 @@ elif page == "🔥 热度多维分析":
                 showscale=True,
                 cmin=top_items['heat_score'].min(),
                 cmax=top_items['heat_score'].max(),
-                colorbar=dict(title="热度得分", thickness=15),
-                width=3,  # 加粗线条
-                opacity=0.9  # 增加不透明度
+                colorbar=dict(title="热度得分", thickness=15)
+                # 移除了 width=3 和 opacity=0.9，Parcoords不支持这些属性
             ),
             dimensions=dimensions_list,
             unselected=dict(line=dict(color='lightgray', opacity=0.2)),
-            # 增加字体大小和清晰度
             labelfont=dict(size=13, color="#1e293b", family="Arial Black"),
             tickfont=dict(size=11, color="#475569"),
             rangefont=dict(size=10, color="#64748b")
@@ -383,7 +334,7 @@ elif page == "🔥 热度多维分析":
         
         fig_parallel.update_layout(
             height=500,
-            margin=dict(l=120, r=100, t=50, b=60),  # 增加边距以显示完整标签
+            margin=dict(l=120, r=100, t=50, b=60),
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)',
             font=dict(size=12),
@@ -396,7 +347,6 @@ elif page == "🔥 热度多维分析":
         )
         st.plotly_chart(fig_parallel, use_container_width=True, config={'displayModeBar': False})
         
-        # 显示详细数据表格
         with st.expander("📋 查看Top10商品详细数据"):
             display_cols = ['item_id', 'cat_id'] + dims
             st.dataframe(
@@ -405,7 +355,7 @@ elif page == "🔥 热度多维分析":
                 hide_index=True
             )
     
-    # Tab2: 子弹图（简化版）
+    # Tab2: 子弹图
     with tab2:
         col_select, col_chart = st.columns([1, 4])
         
@@ -430,7 +380,6 @@ elif page == "🔥 热度多维分析":
         
         with col_chart:
             if selected_items and metrics_compare:
-                # 创建子弹图（简化版）
                 fig_bullet = go.Figure()
                 
                 colors = ['#2563eb', '#dc2626']
@@ -441,16 +390,12 @@ elif page == "🔥 热度多维分析":
                     
                     for metric_idx, metric in enumerate(metrics_compare):
                         actual = item[metric]
-                        target = cat_means[metric]
                         
-                        # 归一化到0-100显示
                         max_val = filtered_df[metric].max()
                         normalized_actual = (actual / max_val) * 100 if max_val > 0 else 0
-                        normalized_target = (target / max_val) * 100 if max_val > 0 else 0
                         
                         y_pos = metric_idx * 2 + idx * 0.8
                         
-                        # 背景条（灰色参考线）
                         fig_bullet.add_trace(go.Bar(
                             x=[100],
                             y=[f"{metric}_{idx}"],
@@ -461,7 +406,6 @@ elif page == "🔥 热度多维分析":
                             hoverinfo='skip'
                         ))
                         
-                        # 实际值条
                         fig_bullet.add_trace(go.Bar(
                             x=[normalized_actual],
                             y=[f"{metric}_{idx}"],
@@ -471,22 +415,9 @@ elif page == "🔥 热度多维分析":
                             text=f'{actual:.1f}',
                             textposition='outside',
                             showlegend=(metric_idx == 0),
-                            width=0.6,
-                            hovertemplate=f'<b>{metric}</b><br>商品{item_id}: {actual:.2f}<br>类目均值: {target:.2f}<extra></extra>'
+                            width=0.6
                         ))
-                        
-                        # 目标线（竖线）
-                        fig_bullet.add_vline(
-                            x=normalized_target,
-                            line_dash="dash",
-                            line_color="#64748b",
-                            line_width=2,
-                            annotation_text="均值",
-                            annotation_position="top right",
-                            annotation_font_size=9
-                        )
                 
-                # 设置Y轴标签
                 y_labels = []
                 for metric in metrics_compare:
                     label = {'heat_score': '热度得分', 'uv': 'UV', 'clicks': '点击数', 
@@ -507,7 +438,6 @@ elif page == "🔥 热度多维分析":
                 )
                 st.plotly_chart(fig_bullet, use_container_width=True, config={'displayModeBar': False})
                 
-                # 显示对比表格
                 comparison_data = []
                 for item_id in selected_items[:2]:
                     item = filtered_df[filtered_df['item_id'] == item_id].iloc[0]
@@ -525,25 +455,35 @@ elif page == "🔥 热度多维分析":
             else:
                 st.info("请选择至少一个商品和指标进行对比")
     
-    # Tab3: 树状图
+    # Tab3: 树状图（修复Interval序列化问题）
     with tab3:
         st.markdown('<div style="padding: 10px 0; font-weight: 600; color: #1e293b; font-size: 1.1rem;">🗂️ 类目×热度层级树状图</div>', unsafe_allow_html=True)
         st.markdown('<p style="color: #64748b; font-size: 0.85rem; margin-bottom: 15px;">矩形大小表示商品数量，颜色深浅表示平均热度</p>', unsafe_allow_html=True)
         
-        # 准备树状图数据
         df_temp = filtered_df.copy()
-        df_temp['heat_level'] = pd.cut(df_temp['heat_score'], 
-                                      bins=[0, 2, 5, 10, 20, float('inf')],
-                                      labels=['冷门(0-2)', '一般(2-5)', '热门(5-10)', '爆款(10-20)', '超级爆款(20+)'])
         
-        # 按类目和热度等级聚合
+        # 修复：使用pd.cut并确保转换为字符串，避免Interval类型
+        try:
+            df_temp['heat_level'] = pd.cut(df_temp['heat_score'], 
+                                          bins=[0, 2, 5, 10, 20, float('inf')],
+                                          labels=['冷门(0-2)', '一般(2-5)', '热门(5-10)', '爆款(10-20)', '超级爆款(20+)'])
+            # 转换为字符串类型，避免JSON序列化错误
+            df_temp['heat_level'] = df_temp['heat_level'].astype(str)
+        except:
+            # 如果分箱失败，使用简单的分类
+            df_temp['heat_level'] = '未知'
+            df_temp.loc[df_temp['heat_score'] <= 2, 'heat_level'] = '冷门(0-2)'
+            df_temp.loc[(df_temp['heat_score'] > 2) & (df_temp['heat_score'] <= 5), 'heat_level'] = '一般(2-5)'
+            df_temp.loc[(df_temp['heat_score'] > 5) & (df_temp['heat_score'] <= 10), 'heat_level'] = '热门(5-10)'
+            df_temp.loc[(df_temp['heat_score'] > 10) & (df_temp['heat_score'] <= 20), 'heat_level'] = '爆款(10-20)'
+            df_temp.loc[df_temp['heat_score'] > 20, 'heat_level'] = '超级爆款(20+)'
+        
         treemap_data = df_temp.groupby(['cat_id', 'heat_level']).agg({
             'item_id': 'count',
             'heat_score': 'mean'
         }).reset_index()
         treemap_data.columns = ['cat_id', 'heat_level', 'count', 'avg_heat']
         
-        # 只保留商品数>10的类目避免过碎
         cat_counts = df_temp['cat_id'].value_counts()
         top_cats = cat_counts.head(20).index
         treemap_data = treemap_data[treemap_data['cat_id'].isin(top_cats)]
@@ -573,7 +513,7 @@ elif page == "🔥 热度多维分析":
         st.plotly_chart(fig_treemap, use_container_width=True, config={'displayModeBar': False})
 
 # ==========================================
-# 页面3：转化漏斗洞察（修复版）
+# 页面3：转化漏斗洞察（修复版 - 包含收藏）
 # ==========================================
 elif page == "🎯 转化漏斗洞察":
     st.markdown('<h1 class="hero-title">用户行为转化漏斗</h1>', unsafe_allow_html=True)
@@ -601,16 +541,12 @@ elif page == "🎯 转化漏斗洞察":
         </div>
         """, unsafe_allow_html=True)
     
-    # 漏斗图（修复版 - 包含收藏）
     with st.container():
         st.markdown('<div style="padding: 10px 0; font-weight: 600; color: #1e293b;">📉 行为转化漏斗（全链路）</div>', unsafe_allow_html=True)
         
         funnel_values = [total_uv, total_clicks, total_favorites, total_carts, total_purchases]
         funnel_labels = ["曝光", "点击", "收藏", "加购", "购买"]
         funnel_colors = ["#94a3b8", "#3b82f6", "#ec4899", "#f59e0b", "#10b981"]
-        
-        # 计算转化率
-        funnel_percentages = [100] + [funnel_values[i]/funnel_values[i-1]*100 if funnel_values[i-1] > 0 else 0 for i in range(1, len(funnel_values))]
         
         fig_funnel = go.Figure(go.Funnel(
             y=funnel_labels,
@@ -631,28 +567,23 @@ elif page == "🎯 转化漏斗洞察":
         )
         st.plotly_chart(fig_funnel, use_container_width=True, config={'displayModeBar': False})
     
-    # 美化版桑基图
     with st.container():
         st.markdown('<div style="padding: 10px 0; font-weight: 600; color: #1e293b;">🌊 用户行为流量桑基图</div>', unsafe_allow_html=True)
         
-        # 抽样计算各阶段人数
         sample_size = min(5000, len(filtered_df))
         sample_df = filtered_df.sample(sample_size, random_state=42)
         
-        # 计算各阶段留存（基于行为>0）
         exposure = sample_size
         click_n = (sample_df['clicks'] > 0).sum()
         fav_n = (sample_df['favorites'] > 0).sum()
         cart_n = (sample_df['carts'] > 0).sum()
         buy_n = (sample_df['purchases'] > 0).sum()
         
-        # 流失人数
         loss_click = exposure - click_n
         loss_fav = click_n - fav_n
         loss_cart = fav_n - cart_n
         loss_buy = cart_n - buy_n
         
-        # 创建节点和连接
         fig_sankey = go.Figure(data=[go.Sankey(
             arrangement="snap",
             node=dict(
@@ -666,8 +597,8 @@ elif page == "🎯 转化漏斗洞察":
             ),
             link=dict(
                 source=[0, 0, 1, 1, 2, 2, 3, 3],
-                target=[1, 5, 2, 5, 3, 6, 4, 7],
-                value=[click_n, loss_click, fav_n, loss_click, cart_n, loss_fav, buy_n, loss_cart],
+                target=[1, 5, 2, 6, 3, 7, 4, 8],
+                value=[click_n, loss_click, fav_n, loss_fav, cart_n, loss_cart, buy_n, loss_cart],
                 color=[
                     "rgba(59, 130, 246, 0.6)",
                     "rgba(203, 213, 225, 0.3)",
@@ -696,7 +627,6 @@ elif page == "🎯 转化漏斗洞察":
         )
         st.plotly_chart(fig_sankey, use_container_width=True, config={'displayModeBar': False})
         
-        # 添加转化率说明
         col_conv1, col_conv2, col_conv3, col_conv4 = st.columns(4)
         with col_conv1:
             st.metric("曝光→点击", f"{click_n/exposure*100:.1f}%", f"{click_n}人")
@@ -723,7 +653,6 @@ elif page == "📈 统计检验报告":
         col1, col2 = st.columns(2)
         
         with col1:
-            # 选择对比类目
             cat_list = sorted(filtered_df['cat_id'].unique())
             cat_a = st.selectbox("选择类目A（高热度组）", cat_list, index=0)
             cat_b = st.selectbox("选择类目B（对照组）", cat_list, index=min(1, len(cat_list)-1))
@@ -736,14 +665,12 @@ elif page == "📈 统计检验报告":
                                      'uv': 'UV访问量', 'clicks': '点击数'}[x]
             )
         
-        # 执行T检验
         group_a = filtered_df[filtered_df['cat_id'] == cat_a][metric].dropna()
         group_b = filtered_df[filtered_df['cat_id'] == cat_b][metric].dropna()
         
         if len(group_a) > 1 and len(group_b) > 1:
             t_stat, p_value = stats.ttest_ind(group_a, group_b)
             
-            # 结果显示
             result_col1, result_col2, result_col3 = st.columns(3)
             with result_col1:
                 st.metric("T统计量", f"{t_stat:.3f}")
@@ -755,7 +682,6 @@ elif page == "📈 统计检验报告":
                 significance = "差异显著" if p_value < 0.05 else "差异不显著"
                 st.metric("检验结论", significance)
             
-            # 可视化
             fig = go.Figure()
             fig.add_trace(go.Box(y=group_a, name=f'类目{cat_a}', marker_color='#3b82f6'))
             fig.add_trace(go.Box(y=group_b, name=f'类目{cat_b}', marker_color='#f59e0b'))
@@ -769,7 +695,6 @@ elif page == "📈 统计检验报告":
             )
             st.plotly_chart(fig, use_container_width=True)
             
-            # 检验解释
             st.info(f"""
             **检验说明**：  
             - 原假设H₀：类目{cat_a}与类目{cat_b}的{metric}均值无显著差异  
@@ -782,7 +707,6 @@ elif page == "📈 统计检验报告":
         st.markdown("### 单因素方差分析（ANOVA）")
         st.markdown("检验多个类目间热度得分是否存在显著差异")
         
-        # 选择Top5类目进行方差分析
         top_cats = filtered_df['cat_id'].value_counts().head(5).index.tolist()
         cat_groups = [filtered_df[filtered_df['cat_id'] == cat]['heat_score'].dropna() for cat in top_cats]
         
@@ -797,12 +721,10 @@ elif page == "📈 统计检验报告":
                          "显著" if p_value < 0.05 else "不显著",
                          delta_color="inverse" if p_value < 0.05 else "normal")
             
-            # 各类目均值
             cat_means = filtered_df[filtered_df['cat_id'].isin(top_cats)].groupby('cat_id')['heat_score'].agg(['mean', 'std', 'count'])
             st.markdown("#### 各类目热度统计")
             st.dataframe(cat_means, use_container_width=True)
             
-            # 小提琴图
             fig_violin = px.violin(
                 filtered_df[filtered_df['cat_id'].isin(top_cats)],
                 x='cat_id', y='heat_score',
@@ -818,11 +740,9 @@ elif page == "📈 统计检验报告":
         st.markdown("### Pearson相关性分析")
         st.markdown("探索各指标间的线性相关关系")
         
-        # 计算相关矩阵
         corr_cols = ['heat_score', 'uv', 'clicks', 'favorites', 'carts', 'purchases', 'overall_conversion']
         corr_matrix = filtered_df[corr_cols].corr()
         
-        # 热力图
         fig_corr = px.imshow(
             corr_matrix,
             text_auto=True,
@@ -836,7 +756,6 @@ elif page == "📈 统计检验报告":
         fig_corr.update_layout(height=500, paper_bgcolor='rgba(0,0,0,0)')
         st.plotly_chart(fig_corr, use_container_width=True)
         
-        # 强相关对
         st.markdown("#### 强相关指标对（|r| > 0.7）")
         strong_corr = []
         for i in range(len(corr_cols)):
@@ -862,7 +781,6 @@ elif page == "🔍 智能商品探查":
     st.markdown('<h1 class="hero-title">智能商品探查引擎</h1>', unsafe_allow_html=True)
     st.markdown('<p class="subtitle">深度挖掘商品特征与潜在价值</p>', unsafe_allow_html=True)
     
-    # 搜索栏
     search_col1, search_col2 = st.columns([3, 1])
     with search_col1:
         search_id = st.text_input("🔍 输入商品ID搜索", placeholder="例如：800913")
@@ -870,15 +788,12 @@ elif page == "🔍 智能商品探查":
         st.markdown("<br>", unsafe_allow_html=True)
         search_btn = st.button("开始探查", type="primary", use_container_width=True)
     
-    # 热门商品推荐
     if not search_id:
         st.markdown("### 🔥 热度榜TOP10")
         top10 = filtered_df.nlargest(10, 'heat_score')[['item_id', 'cat_id', 'heat_score', 'uv', 'overall_conversion']]
         
-        # 添加排名
         top10.insert(0, '排名', range(1, len(top10)+1))
         
-        # 样式化表格
         st.dataframe(
             top10,
             use_container_width=True,
@@ -898,7 +813,6 @@ elif page == "🔍 智能商品探查":
             }
         )
     
-    # 商品详情
     if search_id and search_btn:
         item_data = filtered_df[filtered_df['item_id'].astype(str) == str(search_id)]
         
@@ -907,7 +821,6 @@ elif page == "🔍 智能商品探查":
         else:
             item = item_data.iloc[0]
             
-            # 商品基本信息
             st.markdown(f"### 📦 商品 #{search_id} 详情报告")
             
             info_col1, info_col2, info_col3, info_col4 = st.columns(4)
@@ -921,7 +834,6 @@ elif page == "🔍 智能商品探查":
             with info_col4:
                 st.metric("整体转化率", f"{item['overall_conversion']:.2f}%")
             
-            # 详细指标
             st.markdown("#### 📊 详细指标")
             
             metric_cols = st.columns(5)
@@ -943,7 +855,6 @@ elif page == "🔍 智能商品探查":
                     </div>
                     """, unsafe_allow_html=True)
             
-            # 同品类对比
             st.markdown("#### 🏷️ 同类目表现对比")
             same_cat = filtered_df[filtered_df['cat_id'] == item['cat_id']]
             
@@ -952,14 +863,10 @@ elif page == "🔍 智能商品探查":
                 
                 fig_radar = go.Figure()
                 
-                # 当前商品
                 item_values = [item[m] for m in compare_metrics]
-                # 类目均值
                 cat_means = [same_cat[m].mean() for m in compare_metrics]
-                # 类目Top10%分位数
                 cat_top10 = [same_cat[m].quantile(0.9) for m in compare_metrics]
                 
-                # 归一化
                 max_vals = [same_cat[m].max() for m in compare_metrics]
                 item_norm = [item_values[i]/max_vals[i]*100 for i in range(len(compare_metrics))]
                 cat_norm = [cat_means[i]/max_vals[i]*100 for i in range(len(compare_metrics))]
@@ -1006,7 +913,6 @@ elif page == "🔍 智能商品探查":
                 )
                 st.plotly_chart(fig_radar, use_container_width=True)
                 
-                # 诊断建议
                 st.markdown("#### 💡 智能诊断")
                 
                 insights = []
