@@ -451,34 +451,42 @@ elif page == "🔥 热度多维分析":
                 st.plotly_chart(fig_radar, use_container_width=True)
         st.markdown('</div>', unsafe_allow_html=True)
     
-    with tab3:
-        st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-        st.subheader("🔥 类目×热度交叉热力矩阵")
+        with tab3:
+            st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+            st.subheader("🔥 类目×热度交叉热力矩阵")
         
-        # 创建透视表
-        heat_pivot = df.pivot_table(
-            values='heat_score',
-            index='cat_id',
-            columns=pd.cut(df['heat_score'], bins=5),
-            aggfunc='count',
-            fill_value=0
+        # 修复：手动创建分位标签，避免Interval对象
+            heat_bins = pd.cut(df['heat_score'], bins=5)
+        # 将Interval对象转换为字符串标签
+            bin_labels = [f"{int(interval.left)}-{int(interval.right)}" 
+                   for interval in heat_bins.cat.categories]
+            df['heat_bin'] = heat_bins.astype(str)  # 转为字符串类别
+        
+            heat_pivot = df.pivot_table(
+                values='heat_score',
+                index='cat_id',
+                columns='heat_bin',  # 使用字符串列
+                aggfunc='count',
+                fill_value=0
         )
         
-        # 只显示Top15类目避免过大
-        top_cats = df['cat_id'].value_counts().head(15).index
-        heat_pivot_filtered = heat_pivot.loc[top_cats]
+        # 重新命名列为可读标签（如果列名还是区间字符串）
+            if heat_pivot.columns.dtype == 'object':
+                heat_pivot.columns = [f"分位{i+1}" for i in range(len(heat_pivot.columns))]
         
-        fig_heat = px.imshow(
-            heat_pivot_filtered,
-            labels=dict(x="热度分位", y="类目ID", color="商品数"),
-            color_continuous_scale="YlOrRd",
-            aspect="auto",
-            template='plotly_white'
+            top_cats = df['cat_id'].value_counts().head(15).index
+            heat_pivot_filtered = heat_pivot.loc[top_cats]
+        
+            fig_heat = px.imshow(
+                heat_pivot_filtered,
+                labels=dict(x="热度分位", y="类目ID", color="商品数"),
+                color_continuous_scale="YlOrRd",
+                aspect="auto",
+                template='plotly_white'
         )
-        fig_heat.update_layout(height=600, title_x=0.5)
-        st.plotly_chart(fig_heat, use_container_width=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-
+            fig_heat.update_layout(height=600, title_x=0.5)
+            st.plotly_chart(fig_heat, use_container_width=True)  # 现在不会报错了
+            st.markdown('</div>', unsafe_allow_html=True)
 # ==========================================
 # 6. 页面3：转化漏斗洞察（新增桑基图+漏斗图）
 # ==========================================
